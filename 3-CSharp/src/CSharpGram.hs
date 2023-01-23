@@ -19,6 +19,7 @@ data Stat = StatDecl   Decl
           | StatBlock  [Stat]
           deriving Show
 
+--NOTE: Unlike regular C#, this won't do typechecking
 data Expr = ExprConst  Int
           | ExprVar    String
           | ExprOper   String Expr Expr
@@ -62,7 +63,7 @@ pStat =  StatExpr <$> pExpr <*  sSemi
      where optionalElse = option (symbol KeyElse *> pStat) (StatBlock [])
 
 pExprSimple :: Parser Token Expr
-pExprSimple =  ExprConst <$> sConstInt
+pExprSimple =  ExprConst <$> (sConstInt <|> sConstChar <|> sConstBool)
            <|> ExprVar   <$> sLowerId
            <|> parenthesised pExpr
 

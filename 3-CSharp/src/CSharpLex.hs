@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 module CSharpLex where
 
 import Data.Char
@@ -5,7 +6,6 @@ import Control.Monad (guard)
 import ParseLib.Abstract
 import Prelude hiding ((<$), (<*), (*>), sequence)
 import Data.Maybe
-
 data Token = POpen    | PClose      -- parentheses     ()
            | SOpen    | SClose      -- square brackets []
            | COpen    | CClose      -- curly braces    {}
@@ -20,7 +20,7 @@ data Token = POpen    | PClose      -- parentheses     ()
            | LowerId   String       -- lowercase identifiers
            | ConstInt  Int
            | ConstBool Bool
-           | ConstString String
+           | ConstChar Char
            deriving (Eq, Show)
 
 ----- Begin Lexer -----
@@ -34,7 +34,7 @@ lexToken = greedyChoice
              , lexEnum Operator operators
              , lexConstInt
              , lexConstBool
-             , lexConstString
+             , lexConstChar
              , lexLowerId
              , lexUpperId
              ]
@@ -75,14 +75,14 @@ operators = ["+", "-", "*", "/", "%", "&&", "||", "^", "<=", "<", ">=", ">", "==
 
 lexConstInt :: Parser Char Token
 lexConstInt = ConstInt . read <$> greedy1 (satisfy isDigit)
-
-lexConstString :: Parser Char Token
-lexConstString = ConstString <$> pack quotation (many (satisfy (/= '\"'))) quotation
-  where quotation = symbol '\"'
+--NOTE: This lexer doesn't work properly with special characters
+lexConstChar :: Parser Char Token
+lexConstChar = ConstChar <$> pack apostrophe anySymbol apostrophe
+  where apostrophe = symbol '\''
 
 --it should be noted that bools in C# are full lowercase
 lexConstBool :: Parser Char Token
-lexConstBool = ConstBool <$> (True <$ token "true" <|> False <$ token "talse") 
+lexConstBool = ConstBool <$> (True <$ token "true" <|> False <$ token "false")
 
 lexLowerId :: Parser Char Token
 lexLowerId = (\x xs -> LowerId (x:xs)) <$> satisfy isLower <*> greedy (satisfy isAlphaNum)
@@ -127,14 +127,15 @@ sConstInt  = pFromMaybe fromConst
   where fromConst (ConstInt  x) = Just x
         fromConst _             = Nothing
 
-sConstString :: Parser Token String
-sConstString  = pFromMaybe fromConst
-  where fromConst (ConstString x) = Just x
+sConstChar :: Parser Token Int
+sConstChar  = pFromMaybe fromConst
+  where fromConst (ConstChar x) = Just $ ord x
         fromConst _             = Nothing
 
-sConstBool :: Parser Token Bool
+sConstBool :: Parser Token Int
 sConstBool  = pFromMaybe fromConst
-  where fromConst (ConstBool  x) = Just x
+  where fromConst (ConstBool x) = Just (if x then 0xFFFFFFFF else 0x00000000)
+
         fromConst _             = Nothing
 
 sOperator :: Parser Token String
