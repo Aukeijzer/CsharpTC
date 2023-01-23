@@ -19,6 +19,8 @@ data Token = POpen    | PClose      -- parentheses     ()
            | UpperId   String       -- uppercase identifiers
            | LowerId   String       -- lowercase identifiers
            | ConstInt  Int
+           | ConstBool Bool
+           | ConstString String
            deriving (Eq, Show)
 
 ----- Begin Lexer -----
@@ -31,6 +33,8 @@ lexToken = greedyChoice
              , lexEnum StdType stdTypes
              , lexEnum Operator operators
              , lexConstInt
+             , lexConstBool
+             , lexConstString
              , lexLowerId
              , lexUpperId
              ]
@@ -71,6 +75,14 @@ operators = ["+", "-", "*", "/", "%", "&&", "||", "^", "<=", "<", ">=", ">", "==
 
 lexConstInt :: Parser Char Token
 lexConstInt = ConstInt . read <$> greedy1 (satisfy isDigit)
+
+lexConstString :: Parser Char Token
+lexConstString = ConstString <$> pack quotation (many (satisfy (/= '\"'))) quotation
+  where quotation = symbol '\"'
+
+--it should be noted that bools in C# are full lowercase
+lexConstBool :: Parser Char Token
+lexConstBool = ConstBool <$> (True <$ token "true" <|> False <$ token "talse") 
 
 lexLowerId :: Parser Char Token
 lexLowerId = (\x xs -> LowerId (x:xs)) <$> satisfy isLower <*> greedy (satisfy isAlphaNum)
