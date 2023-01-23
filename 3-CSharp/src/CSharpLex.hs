@@ -122,9 +122,19 @@ sLowerId = pFromMaybe fromLowerId
   where fromLowerId (LowerId x) = Just x
         fromLowerId _           = Nothing
 
-sConst :: Parser Token Int
-sConst  = pFromMaybe fromConst
+sConstInt :: Parser Token Int
+sConstInt  = pFromMaybe fromConst
   where fromConst (ConstInt  x) = Just x
+        fromConst _             = Nothing
+
+sConstString :: Parser Token String
+sConstString  = pFromMaybe fromConst
+  where fromConst (ConstString x) = Just x
+        fromConst _             = Nothing
+
+sConstBool :: Parser Token Bool
+sConstBool  = pFromMaybe fromConst
+  where fromConst (ConstBool  x) = Just x
         fromConst _             = Nothing
 
 sOperator :: Parser Token String

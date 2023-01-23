@@ -62,7 +62,7 @@ pStat =  StatExpr <$> pExpr <*  sSemi
      where optionalElse = option (symbol KeyElse *> pStat) (StatBlock [])
 
 pExprSimple :: Parser Token Expr
-pExprSimple =  ExprConst <$> sConst
+pExprSimple =  ExprConst <$> sConstInt
            <|> ExprVar   <$> sLowerId
            <|> parenthesised pExpr
 
