@@ -2,7 +2,7 @@ module CSharpGram where
 
 import ParseLib.Abstract hiding (braced, bracketed, parenthesised)
 import CSharpLex
-import Prelude hiding ((<$), (<*), (*>), sequence)
+import Prelude hiding ((<$), (<*), (*>), sequence, Left, Right)
 
 data Class = Class String [Member]
            deriving Show
@@ -19,7 +19,11 @@ data Stat = StatDecl   Decl
           | StatBlock  [Stat]
           deriving Show
 
---NOTE: Unlike regular C#, this won't do typechecking
+{- 
+    NOTE: Unlike regular C#, this won't do typechecking yet
+    NOTE: the precedence for boolean operations (from high to low) is: &, ^, |, &&, ||.
+    Here && and || are lazy variants of & and |. In our implementation we will use the precedence: ^, &&, ||.  
+-}
 data Expr = ExprConst  Int
           | ExprVar    String
           | ExprOper   String Expr Expr
@@ -59,16 +63,35 @@ pStat =  StatExpr <$> pExpr <*  sSemi
      <|> StatIf     <$ symbol KeyIf     <*> parenthesised pExpr <*> pStat <*> optionalElse
      <|> StatWhile  <$ symbol KeyWhile  <*> parenthesised pExpr <*> pStat
      <|> StatReturn <$ symbol KeyReturn <*> pExpr               <*  sSemi
+     <|> (\a b c d -> StatBlock [a, StatWhile b (StatBlock [d,c])]) <$ symbol KeyFor <* symbol POpen 
+       <*> exprDecls <* sSemi <*> pExpr <* sSemi <*> exprDecls <* symbol PClose <*> pStat
      <|> pBlock
      where optionalElse = option (symbol KeyElse *> pStat) (StatBlock [])
+exprDecls :: Parser Token Stat
+exprDecls = StatBlock <$> option (listOf (StatExpr <$> pExpr <|> StatDecl <$> pDecl) sComma) []
 
+--Parses something which can be treated as a single variable for the pExpr function
 pExprSimple :: Parser Token Expr
 pExprSimple =  ExprConst <$> (sConstInt <|> sConstChar <|> sConstBool)
            <|> ExprVar   <$> sLowerId
            <|> parenthesised pExpr
 
+data Direction = Left | Right
+
+priority :: [(String,Direction)]
+priority = [("*",Left),("/",Left),("%",Left),
+           ("+",Left),("-",Left),("<",Left),
+           (">",Left),("<=",Left),(">=",Left),
+           ("==",Left),("!=",Left),("^",Left),
+           ("&&",Left),("||",Left),("=",Right)]
+
 pExpr :: Parser Token Expr
-pExpr = chainr pExprSimple (ExprOper <$> sOperator)
+pExpr = foldl f pExprSimple priority
+  where f parser (newOperator,Left) = chainl parser (ExprOper <$> sOperator newOperator)
+        f parser (newOperator,Right) = chainr parser (ExprOper <$> sOperator newOperator)
+
+testExpr :: [Token]
+testExpr = fst $ head $ parse lexicalScanner "2+3*4"
 
 pDecl :: Parser Token Decl
 pDecl = Decl <$> pType <*> sLowerId

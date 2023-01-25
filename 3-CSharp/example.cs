@@ -1,11 +1,11 @@
 class Hello
 {
     int g;
-    
+    //test
     void main()
     {
-        bool b;
-        b = true;
+        int b;
+        b = 1;
     }
     
     int square( int x )
@@ -14,7 +14,7 @@ class Hello
         y = x*x;
         return y;   
     }
-
+    //According to all known laws of aviation, there is no way that a bee should be able to fly. Its wings are too small to get its fat little body off the ground. The bee, of course, flies anyway because bees don't care what humans think is impossible. 
     int abs(int x)
     {
     	

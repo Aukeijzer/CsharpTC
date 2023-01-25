@@ -14,6 +14,7 @@ data Token = POpen    | PClose      -- parentheses     ()
            | KeyWhile | KeyReturn
            | KeyTry   | KeyCatch
            | KeyClass | KeyVoid
+           | KeyFor
            | StdType   String       -- the 8 standard types
            | Operator  String       -- the 15 operators
            | UpperId   String       -- uppercase identifiers
@@ -25,7 +26,8 @@ data Token = POpen    | PClose      -- parentheses     ()
 
 ----- Begin Lexer -----
 lexicalScanner :: Parser Char [Token]
-lexicalScanner = lexWhiteSpace *> greedy (lexToken <* lexWhiteSpace) <* eof
+lexicalScanner = lexRest *> greedy (lexToken <* lexRest) <* eof
+  where lexRest = many (lexComment <|> lexWhiteSpace)
 
 lexToken :: Parser Char Token
 lexToken = greedyChoice
@@ -56,6 +58,7 @@ lexTerminal = choice [t <$ keyword s | (t,s) <- terminals]
       , ( KeyIf     , "if"     )
       , ( KeyElse   , "else"   )
       , ( KeyWhile  , "while"  )
+      , ( KeyFor    , "for"    )
       , ( KeyReturn , "return" )
       , ( KeyTry    , "try"    )
       , ( KeyCatch  , "catch"  )
@@ -72,9 +75,9 @@ stdTypes = ["int", "long", "double", "float", "byte", "short", "bool", "char"]
 operators :: [String]
 operators = ["+", "-", "*", "/", "%", "&&", "||", "^", "<=", "<", ">=", ">", "==", "!=", "="]
 
-
 lexConstInt :: Parser Char Token
 lexConstInt = ConstInt . read <$> greedy1 (satisfy isDigit)
+
 --NOTE: This lexer doesn't work properly with special characters
 lexConstChar :: Parser Char Token
 lexConstChar = ConstChar <$> pack apostrophe anySymbol apostrophe
@@ -92,7 +95,10 @@ lexUpperId = (\x xs -> UpperId (x:xs)) <$> satisfy isUpper <*> greedy (satisfy i
 
 
 lexWhiteSpace :: Parser Char String
-lexWhiteSpace = greedy (satisfy isSpace)
+lexWhiteSpace = greedy1 (satisfy isSpace)
+
+lexComment :: Parser Char String
+lexComment = (++) <$> token "//" <*> greedy (satisfy (/= '\n'))
 
 keyword :: String -> Parser Char String
 keyword [] = succeed ""
@@ -138,14 +144,15 @@ sConstBool  = pFromMaybe fromConst
 
         fromConst _             = Nothing
 
-sOperator :: Parser Token String
-sOperator = pFromMaybe fromOperator
-  where fromOperator (Operator x) = Just x
+sOperator :: String -> Parser Token String
+sOperator s = pFromMaybe fromOperator
+  where fromOperator (Operator x) = if x==s then Just x else Nothing
         fromOperator _            = Nothing
 
 sSemi :: Parser Token Token
 sSemi =  symbol Semicolon
 
-
+sComma :: Parser Token Token
+sComma = symbol Comma
 pFromMaybe :: (s -> Maybe a) -> Parser s a
 pFromMaybe f = fromJust . f <$> satisfy (isJust . f)
